@@ -16,5 +16,8 @@ copy the gemmes.dat.example file to gemmes.dat
 Use the namelist file gemmes.dat to change the parameters and initial conditions.
 A list of model parameters and initial conditions can be found in modules.f90
 
+# Run
+Once the setup is ready, it suffices to run the program as ./gemmes
+
 # Output
 The simulation outputs go to gemmes.out as formatted data
