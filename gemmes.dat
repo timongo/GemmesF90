@@ -1,0 +1,8 @@
+ &model_parameters
+/
+ &initial_conditions
+/
+ &numerical_parameters
+ dt = 0.05,
+ tmax = 84.
+/
