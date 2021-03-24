@@ -5,11 +5,14 @@ Bovari, Emmanuel, Gael Giraud, and Florent McIsaac. "Financial impacts of climat
 https://www.tandfonline.com/doi/abs/10.1080/14693062.2019.1698406
 Some differences with the paper exist.
 
-# Compilation
-Replace ifort with your available compiler in Makefile.
+# Compilation, getting started
+Copy the Makefile.example to Makefile
+Replace ifort with your available compiler in Makefile, and be careful with the compilation option
+If you use gfortran, the option should be -fdefault-real-8 (instead of -r8 or -real-size 64 in the ifort case)
 Then type make
 
 # Parameters
+copy the gemmes.dat.example file to gemmes.dat
 Use the namelist file gemmes.dat to change the parameters and initial conditions.
 A list of model parameters and initial conditions can be found in modules.f90
 

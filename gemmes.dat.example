@@ -1,4 +1,5 @@
  &model_parameters
+ dam_type = 3,
 /
  &initial_conditions
 /

@@ -592,7 +592,40 @@ subroutine output
 
   mp = 1
   open(mp, file='gemmes.out', form = 'formatted')
-  write(mp,'(34A)') 'time ', 'capital  ','npop  ','debt  ','wage  ','productivity  ','price  ','eland  ','sigma  ','gsigma  ','co2at  ','co2up  ','co2lo  ','temp  ','temp0  ','pbs  ','pcar  ','omega  ','lambda  ','debtratio  ','gdp0  ','gdp  ','eind  ','inflation  ','abat  ','n_red_fac  ','smallpi  ','smallpi_k  ','dam  ','dam_k  ','dam_y  ','fexo  ','find  ','rcb  '
+  write(mp,'(34A)') 'time ', &
+       &            'capital  ', &
+       &            'npop  ', &
+       &            'debt  ', &
+       &            'wage  ', &
+       &            'productivity  ', &
+       &            'price  ', &
+       &            'eland  ', &
+       &            'sigma  ', &
+       &            'gsigma  ', &
+       &            'co2at  ', &
+       &            'co2up  ', &
+       &            'co2lo  ', &
+       &            'temp  ', &
+       &            'temp0  ', &
+       &            'pbs  ', &
+       &            'pcar  ', &
+       &            'omega  ', &
+       &            'lambda  ', &
+       &            'debtratio  ', &
+       &            'gdp0  ', &
+       &            'gdp  ', &
+       &            'eind  ', &
+       &            'inflation  ', &
+       &            'abat  ', &
+       &            'n_red_fac  ', &
+       &            'smallpi  ', &
+       &            'smallpi_k  ', &
+       &            'dam  ', &
+       &            'dam_k  ', &
+       &            'dam_y  ', &
+       &            'fexo  ', &
+       &            'find  ', &
+       &            'rcb  '
   do i=1,nts
      write(mp,'(34E24.16)') time(i), (sol(i,j), j=1,33)
   end do
