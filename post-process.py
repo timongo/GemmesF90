@@ -99,6 +99,8 @@ def draw_figure(args, data):
     opt = args['doption']
     col = args['col']
     name = args['name']
+    if name=='default':
+        name = 'gemmes_'+opt+'.pdf'
 
     if opt=='all':
         nbs = len(VARS)-1
@@ -161,7 +163,7 @@ VARS = ['all', 'capital', 'npop', 'debt', 'wage', 'productivity', 'price',
         'temp0', 'pbs', 'pcar', 'omega', 'lambda', 'debtratio', 'gdp0', 'gdp',
         'eind', 'inflati', 'on', 'abat', 'n_red_fac', 'smallpi', 'smallpi_k',
         'dam', 'dam_k', 'dam_y', 'fexo', 'find', 'rcb']
-ARGD = {'name':'gemmes.dat', 'doption':'all', 'col':0}
+ARGD = {'name':'default', 'doption':'all', 'col':0}
 FIGSIZE = (20, 20)
 SIZE = 8
 
