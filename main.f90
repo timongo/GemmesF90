@@ -409,7 +409,7 @@ subroutine Kappa(pi,kappapi)
   real(8) :: pi
   real(8) :: kappapi
   
-  kappapi = min(max(kappa0 + kappa1*pi,0.),1.)
+  kappapi = min(max(kappa0 + kappa1*pi,kappamin),kappamax)
 
 end subroutine Kappa
 
@@ -671,30 +671,84 @@ subroutine init
   use ini_cond
   use num_pars
   implicit none
+
   ! Default variables
-  alpha=0.02 ! growth rate of productivity
-  deltanpop=0.0305 ! leading growth rate of workforce
-  npopbar=7.055925493 ! maximum population in the logistic evolution
-  nu=2.7 ! Constant capital-to-output ratio
-  pi1=0. ! damage function parameter
-  pi2=0.00236 ! damage function parameter
-  pi3=0.0000819 ! damage function parameter
-  zeta3=6.754 ! damage function parameter
-  fdamk=0. ! (paper = 1./3) fraction of environmental damage allocated to the stock of capital
-  delta=0.04 ! capital depreciation rate
-  sa=0 ! Fraction of abatement costs that are subsidized
-  apc=0.02 ! carbon price parameter
-  bpc=0. ! carbon price parameter
-  conv10to15=1.160723971/1000. ! conversion factor
-  deltagsigma=-0.001 ! dynamics of emissivity
-  eta=0.5 ! relaxation parameter of inflation 
-  etar=10. ! relaxation parameter of the interest rate
-  mu=1.3 ! markup of prices over the average cost
+
+  ! Climate damages
+  pi1=0. !* damage function parameter
+  pi2=0.00236 !* damage function parameter
+  pi3=0.0000819 !* damage function parameter
+  zeta3=6.754 !* damage function parameter
+  fdamk=1./3 !* (paper = 1./3) fraction of environmental damage allocated to the stock of capital
+  dam_type = 3 !* by default, 1: no damage
+               !              2: medium damage
+               !              3: high damage
+  ! Workforce
+  deltanpop=0.0305 !* leading growth rate of workforce
+  npopbar=7.055925493 !* maximum population in the logistic evolution
+
+  ! Global population
+  !H il manque ces variables
+
+  ! Capital
+  delta=0.04 !* capital depreciation rate
+  nu=2.7 !* Constant capital-to-output ratio
+  div0=0.0512863 ! Constant of the dividend function
+  div1=0.4729 !* Slope of the dividend function
+  divmin=0. !* Minimum of the dividend function
+  divmax=.3 !* Maximum of the dividend function; last value 1.
+  !H Je ne retrouve pas div0 de la meme maniere
+
+  ! Investment
+  kappa0=.031774 !* Constant of the investment function
+  kappa1=.575318414 !* Slope of the investment function
+  kappamax=0.3 !* Maximum of the investment function
+  kappamin=0. !* Minimum of the investment function
+  !H il manque I_Dam mais il est a 0 dans le code R
+
+  ! Inflation
+  conv10to15=1.160723971/1000. !* conversion factor
+  eta=0.5 !* relaxation parameter of inflation 
+  mu=1.3 !* markup of prices over the average cost
   omitted=0.3 ! offset for the production cost in the inflation
-  rstar=0.01 ! Long-term interest rate target of the economy
   phitaylor=0.5 ! parameter characterizing the reactivity of the monetary policy
-  istar=0.02 !interest rate targeted by the monetary policy
+  etar=10. ! relaxation parameter of the interest rate
+  rstar=0.01 ! Long-term interest rate target of the economy
+  istar=0.02 ! interest rate targeted by the monetary policy
+    
+  ! Productivity
+  alpha=0.02 !* growth rate of productivity
+  !H Il me manque a_Tp_1, a_Tp_2, min max
+  !H On est dans le cas constant du code R
+
+  ! Wages
+  phi0=-.291535421 !* Constant of the short-term Philips curve
+  phi1=.468777035 !* Slope of the short-term Philips curve
+  !H  il me manque m mais j'ai l'impression qu'il ne sert à rien dans le code R
+
+  ! CO2 emissions
+  delta_eland=-.0220096 !* Growth rate of land-use change CO2 of emissions
+  deltagsigma=-0.001 !* dynamics of emissivity
+
+  ! Abatement and control prices
+  theta=2.6 !* parameter of the abatement cost function
+  deltapbs=-.00505076337 !* Exogenous growth rate of the back-stop technology price
+
+  ! public - private sector
+  sa=0 ! Fraction of abatement costs that are subsidized
+
+  ! Carbon price
+  apc=0.125 !* carbon price parameter
+  bpc=0.625 !* carbon price parameter
+
   srep=0.1 ! Fraction of the outstanding debt repaid yearly
+
+  ! leverage
+  !H pas de leverage dans le code R
+  cr0=0. ! Constant of the leverage function
+  crlev=0.! slope of the leverage function
+
+  ! Climate constants for climate module
   climate_sens=3.1 ! Climate sensitivity
   gammastar=0.0176 ! Heat exchange coefficient between temperature layers
   f2co2=3.6813 ! Change in radiative forcing resulting from doubling of CO2
@@ -705,42 +759,29 @@ subroutine init
   fexo1=1. ! value of the exogenous radiative forcing in 2100
   phi12=0.0239069 ! Transfer coefficient for carbon from the atmosphere to the upper ocean
   phi23=0.0013409 ! Transfer coefficient for carbon from the upper ocean/biosphere to the lower ocean
-  deltapbs=-.00505076337 ! Exogenous growth rate of the back-stop technology price
-  theta=2.6 ! parameter of the abatement cost function
-  phi0=-.291535421 ! Constant of the short-term Philips curve
-  phi1=.468777035 ! Slope of the short-term Philips curve
-  kappa0=.031774 ! Constant of the investment function
-  kappa1=.575318414 ! Slope of the investment function
-  kappamin=0. ! Minimum of the investment function
-  kappamax=0.3 ! Maximum of the investment function
-  div0=0.0512863 ! Constant of the dividend function
-  div1=0.4729 ! Slope of the dividend function
-  divmin=0. ! Minimum of the dividend function
-  divmax=1.! Maximum of the dividend function
   heat_cap_at=49.75817526819656 ! Heat capacity of the atmosphere biosphere and upper ocean
   heat_cap_lo=3.52 ! Heat capacity of the deeper ocean
-  delta_eland=-.0220096 ! Growth rate of land-use change CO2 of emissions
-  cr0=0.17 ! Constant of the leverage function
-  crlev=.1! slope of the leverage function
-  dam_type = 1 ! by default, no damage
-  
-  ! Initial conditions
-  co2at_ini=851.
-  co2up_ini=460.
-  co2lo_ini=1740.
-  d_ini=1.53282171
-  eind_ini=35.85
-  eland_ini=2.6
-  gsigma_ini=-0.0105
-  pbs_ini=547.2220801465
-  n_ini=0.03
-  npop_ini=4.825484061
-  temp_ini=0.85
-  temp0_ini=0.0068
-  y_ini=59.7387
-  lambda_ini=0.674828
-  omega_ini=0.5782323
-  r_ini=0.10627649250000004
+
+  ! Initial conditions, values with * are equal as in the code R
+  !H par rapport au code R, il me manque NG, F_exo ; r_ini dans R.
+  y_ini=59.7387 !*
+  npop_ini=4.825484061 !*
+  lambda_ini=0.674828 !*
+  omega_ini=0.5782323 !*
+  d_ini=1.53282171 !*
+  eland_ini=2.6 !*
+  eind_ini=35.85 !*
+  n_ini=0.03 !*
+  gsigma_ini=-0.0152 !* replace last value =-0.0105
+  pbs_ini=547.2220801465 !*
+
+  co2at_ini=851. !*
+  co2up_ini=460. !*
+  co2lo_ini=1740. !*
+  temp_ini=0.85 !*
+  temp0_ini=0.0068 !*
+
+  r_ini=0.10627649250000004 !H a quoi sert r_ini
 
   ! initial time
   t_ini = 0.
@@ -749,5 +790,3 @@ subroutine init
   dt = 0.05
   tmax = 84.
 end subroutine init
-
-
