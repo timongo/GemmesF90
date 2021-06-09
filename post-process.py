@@ -29,6 +29,8 @@ def load_args():
                     argdict[Arg] = argl[n+1]
                 except IndexError:
                     ferror(key=1, msg=Arg)
+            elif Arg=='plot':
+                argdict['plot'] = True
             elif Arg=='doption':
                 try:
                     tmp = argl[n+1]
@@ -59,11 +61,12 @@ def fusage():
     Function Usage
     """
     print('\n> Usage: python post-process.py [-name name] [-doption option]')
-    print('> [-h]')
+    print('> [-h] [-plot]')
     print('>\n> Options:')
-    print('>     -h : display this message.')
-    print('>     -name : string : name of figure.')
-    print('>     -doption : string : name of the considerd option in:', VARS)
+    print('>     -h :: display this message.')
+    print('>     -name : string :: name of figure.')
+    print('>     -plot :: to show the figures instead to save them.')
+    print('>     -doption : string :: name of the considerd option in:', VARS)
     print()
     ferror()
 
@@ -103,7 +106,7 @@ def draw_figure(args, data):
         name = 'gemmes_'+opt+'.pdf'
 
     if opt=='all':
-        nbs = len(VARS)-1
+        nbs = 35
         nbr, nbc = nbs//5, nbs//7
         datp = data[:,1:]
         Vars = VARS[1:]
@@ -132,9 +135,12 @@ def draw_figure(args, data):
             continue
         i += 1
 
-    print('\n> Writing file {}.'.format(name))
-    plt.tight_layout()
-    plt.savefig(fname=name)
+    if args['plot']:
+        plt.show()
+    else:
+        print('\n> Writing file {}.'.format(name))
+        plt.tight_layout()
+        plt.savefig(fname=name)
     plt.close(fig)
 
 def ferror(key=0, msg=''):
@@ -142,7 +148,7 @@ def ferror(key=0, msg=''):
     Error function.
     """
     if key==0:
-        print('\n> Post process complete with sucess.\n')
+        print('\n> Post process run with sucess.\n')
     else:
         print('\n> Error {:d}'.format(key))
         if key==1:
@@ -151,7 +157,7 @@ def ferror(key=0, msg=''):
         elif key==2:
             print('>     doption must be in the list, try -h.')
 
-        print('\n> Post process complete with an error.\n')
+        print('\n> Post process run with an error.\n')
 
     # exit script
     print()
@@ -159,11 +165,11 @@ def ferror(key=0, msg=''):
 
 # global constants ------------------------------------------------------------
 VARS = ['all', 'capital', 'npop', 'debt', 'wage', 'productivity', 'price',
-        'eland', 'sigma', 'gsigma', 'co2at', 'co2', 'up', 'co2lo', 'temp', 
+        'eland', 'sigma', 'gsigma', 'co2at', 'co2up', 'co2lo', 'temp', 
         'temp0', 'pbs', 'pcar', 'omega', 'lambda', 'debtratio', 'gdp0', 'gdp',
-        'eind', 'inflati', 'on', 'abat', 'n_red_fac', 'smallpi', 'smallpi_k',
+        'eind', 'inflation', 'abat', 'n_red_fac', 'smallpi', 'smallpi_k',
         'dam', 'dam_k', 'dam_y', 'fexo', 'find', 'rcb']
-ARGD = {'name':'default', 'doption':'all', 'col':0}
+ARGD = {'name':'default', 'doption':'all', 'col':0, 'plot':False}
 FIGSIZE = (20, 20)
 SIZE = 8
 
