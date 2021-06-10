@@ -4,6 +4,7 @@ This script can be used to post process the *.out file.
 # imports ---------------------------------------------------------------------
 import numpy as np
 import matplotlib as mpl
+from matplotlib.ticker import AutoMinorLocator
 import matplotlib.pyplot as plt
 import sys, os
 
@@ -31,6 +32,11 @@ def load_args():
                     ferror(key=1, msg=Arg)
             elif Arg=='plot':
                 argdict['plot'] = True
+            elif Arg=='compf':
+                try:
+                    argdict['compf'] = argl[n+1]
+                except IndexError:
+                    ferror(key=1, msg=Arg)
             elif Arg=='doption':
                 try:
                     tmp = argl[n+1]
@@ -47,14 +53,19 @@ def load_args():
     print('\n> Arguments loaded')
     return argdict
 
-def load_data():
+def load_data(args):
     """
     Fonction to load data from gemmes.
     """
-    data = np.loadtxt(fname='gemmes.out', skiprows=1)
+    data1 = np.loadtxt(fname='gemmes.out', skiprows=1)
+    if args['compf']!=False:
+        data2 = np.loadtxt(fname=args['compf'], skiprows=1)
+        datas = [data1, data2]
+    else:
+        datas = [data1]
 
     print('\n> Gemmes data loaded')
-    return data
+    return datas
 
 def fusage():
     """
@@ -65,6 +76,7 @@ def fusage():
     print('>\n> Options:')
     print('>     -h :: display this message.')
     print('>     -name : string :: name of figure.')
+    print('>     -compf : string :: name of the file *.out to compare with.')
     print('>     -plot :: to show the figures instead to save them.')
     print('>     -doption : string :: name of the considerd option in:', VARS)
     print()
@@ -95,26 +107,55 @@ def change_mpl_opt(opt):
 
     return figsize
 
-def draw_figure(args, data):
+def draw_figure(args, datas):
     """
     Draw the figure and save it.
     """
     opt = args['doption']
     col = args['col']
     name = args['name']
+    compf = args['compf']
+    boolcompf = compf!=False
+    tstop = 2200
+
     if name=='default':
         name = 'gemmes_'+opt+'.pdf'
 
-    if opt=='all':
+    if boolcompf: # there are two *.out files to compare
+
+        opt = 'all'
         nbs = 35
         nbr, nbc = nbs//5, nbs//7
-        datp = data[:,1:]
+
+        datp = datas[0]
+        time = datp[:,0]+2015
+        time = time[time<=tstop]
+        ts = time.size
+
+        datp = datp[:,1:]
+        datp2 = datas[1]
+        time2 = datp2[:,0]
+        time2 = time2[time2<=tstop]
+        t2s = time2.size
+
+        datp2 = datp2[:,1:]
         Vars = VARS[1:]
-    else:
-        nbr, nbc = 1, 1
-        datp = data[:,col:col+1]
-        Vars = VARS[col:col+1]
-    time = data[:,0]
+        name = 'comp_gemmes_'+compf[:-4]+'.pdf'
+
+    else: # there is only one *.out file
+        data = datas[0]
+        if opt=='all':
+            nbs = 35
+            nbr, nbc = nbs//5, nbs//7
+            datp = data[:,1:]
+            Vars = VARS[1:]
+        else:
+            nbr, nbc = 1, 1
+            datp = data[:,col:col+1]
+            Vars = VARS[col:col+1]
+        time = data[:,0]
+        time = time[time<=tstop]
+        ts = time.size
 
     # make figure
     figsize = change_mpl_opt(opt)
@@ -128,12 +169,22 @@ def draw_figure(args, data):
             i = 0
         ax = axes[j, i]
         try:
-            ax.plot(time, datp[:,n])
+            ax.plot(time, datp[:ts,n], label='gemmes.out')
+            if boolcompf:
+                ax.plot(time2, datp2[:t2s,n], linestyle='--', label=compf)
+
             ax.set_xlabel('t')
             ax.set_ylabel(var)
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.grid(which='both', linewidth=.0001, color='silver', alpha=.4)
+
         except IndexError:
             continue
         i += 1
+
+    if boolcompf:
+        axes[0,0].legend()
 
     if args['plot']:
         plt.show()
@@ -169,7 +220,8 @@ VARS = ['all', 'capital', 'npop', 'debt', 'wage', 'productivity', 'price',
         'temp0', 'pbs', 'pcar', 'omega', 'lambda', 'debtratio', 'gdp0', 'gdp',
         'eind', 'inflation', 'abat', 'n_red_fac', 'smallpi', 'smallpi_k',
         'dam', 'dam_k', 'dam_y', 'fexo', 'find', 'rcb']
-ARGD = {'name':'default', 'doption':'all', 'col':0, 'plot':False}
+ARGD = {'name':'default', 'doption':'all', 'col':0, 'plot':False,
+    'compf':False}
 FIGSIZE = (20, 20)
 SIZE = 8
 
@@ -177,6 +229,6 @@ SIZE = 8
 if __name__=='__main__':
     print('\n> Script is launched')
     args = load_args()
-    data = load_data()
-    draw_figure(args, data)
+    datas = load_data(args)
+    draw_figure(args, datas)
     ferror()

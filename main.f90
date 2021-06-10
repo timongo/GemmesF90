@@ -28,7 +28,8 @@ subroutine initial_conditions
   real(8) :: deltapik
   real(8) :: philam
   real(8) :: deltad
- 
+  real(8) :: costprod
+  real(8) :: WACC
 
   ! time intermediate variables
   t2016 = 1.
@@ -68,23 +69,44 @@ subroutine initial_conditions
   productivity = gdp0/workforce
   ! Initial price index
   price = 1.
-  ! inflation
-  inflation = eta*(mu*(omega_ini + omitted) - 1.)
-  ! central bank interest rate
-  call Taylor(inflation,rcb)
+  ! wages
+  wage = omega_ini*price*y_ini/workforce
 
   ! Net transfers between public and private sectors
   transfers = sa*abat*gdp0 - pcar*conv10to15*eind_ini
 
-  ! wages
-  wage = omega_ini*price*y_ini/workforce
   ! Nominal debt
   debt = d_ini*price*y_ini
+
+  ! inflation and Taylor's rate for rate_type=2
+  !                   only rate for rate_type=1
+  if (rate_type.eq.2) then
+      inflation = eta*(mu*(omega_ini + omitted) - 1.)
+     ! central bank interest rate
+     call Taylor(inflation,rcb)
+  else
+     rcb =  rstar
+  endif
 
   ! profits
   pi = price*y_ini - wage*workforce - rcb*debt - deltad*price*capital + price*transfers
   smallpi_k = pi/(price*capital)
   smallpi = pi/(price*y_ini)
+
+  ! Dividends
+  call Dividends(smallpi_k,deltapik)
+
+  ! inflation for rate_type=1
+  if (rate_type.eq.1) then
+     WACC = (rcb*debt + deltapik*price*capital)/price/capital
+     costprod = 1./tc*(wage/price/productivity + pcar*conv10to15*sigma*(1-n_ini) &
+                & + nu*(WACC + deltad))
+     inflation = eta*(mu*costprod - 1.)
+  endif
+
+  ! leverage
+  leverage = debtratio*tc/nu
+  call Tau(leverage,cr)
 
   ! emissions
   find = f2co2*log(co2at_ini/cat_pind)/log(2.)
@@ -98,7 +120,7 @@ subroutine initial_conditions
 
   ! growth rate of gpd0
   call kappa(smallpi,kappapi)
-  call Dividends(smallpi_k,deltapik)
+
   g0 = ((1.-CR)*(1.25*kappapi*tc/nu - deltad) &
        & +CR*(smallpi_k - deltapik - tc*srep*d_ini/nu))
 
@@ -229,7 +251,9 @@ subroutine system_function(t,u,k)
   real(8) :: deltad
   real(8) :: beta
   real(8) :: rho
-  
+  real(8) :: costprod
+  real(8) :: WACC
+
   ! dstate/dt
   real(8) :: kdot
   real(8) :: ndot
@@ -267,6 +291,11 @@ subroutine system_function(t,u,k)
   temp0 = u(14)
   pbs = u(15)
   pcar = u(16)
+
+  !H if like in R code
+  if (pcar.gt.pbs) then
+      pcar = pbs
+  end if
 
   ! time intermediate variables
   t2016 = 1.
@@ -306,17 +335,35 @@ subroutine system_function(t,u,k)
   ! Industrial emission
   eind = gdp0*sigma*(1.-n_red_fac)
 
-  ! inflation
-  inflation = eta*(mu*(omega + omitted) - 1.)
-  ! central bank interest rate
-  call Taylor(inflation,rcb)
+  ! inflation and Taylor's rate for rate_type=2
+  !                   only rate for rate_type=1
+  if (rate_type.eq.2) then
+      inflation = eta*(mu*(omega + omitted) - 1.)
+     ! central bank interest rate
+     call Taylor(inflation,rcb)
+  else
+     rcb =  rstar
+  endif
 
   ! Net transfers between public and private sectors
   transfers = sa*abat*gdp0 - pcar*conv10to15*eind
+
   ! profits
   pi = price*gdp - wage*workforce - rcb*debt - deltad*price*capital + price*transfers
   smallpi_k = pi/(price*capital)
   smallpi = pi/(price*gdp)
+
+  ! Dividends
+  call Dividends(smallpi_k,deltapik)
+
+  ! inflation for rate_type=1
+  if (rate_type.eq.1) then
+     WACC = (rcb*debt + deltapik*price*capital)/price/capital
+     costprod = 1./tc*(wage/price/productivity + pcar*conv10to15*sigma*(1-n_red_fac) &
+                & + nu*(WACC + deltad))
+     inflation = eta*(mu*costprod - 1.)
+  endif
+
   ! leverage
   leverage = debtratio*tc/nu
   call Tau(leverage,cr)
@@ -333,7 +380,6 @@ subroutine system_function(t,u,k)
   ! investment
   call kappa(smallpi,kappapi)
   id = 1.25*kappapi*gdp
-  call Dividends(smallpi_k,deltapik)
   pir = pi - deltapik*price*capital
   investment = cr*(pir/price + deltad*capital - srep*debt/price) &
        &     + (1. - cr)*id
@@ -534,7 +580,8 @@ subroutine read_namelist
        delta_eland, &
        cr0, &
        crlev, &
-       dam_type
+       dam_type, &
+       rate_type
   namelist /initial_conditions/ &
        co2at_ini, &
        co2up_ini, &
@@ -664,6 +711,12 @@ subroutine rk4(t,u)
 
   u = u + (k1+2.*(k2+k3)+k4)*dt/6.
 
+  !H carbon price if like in R code
+  if (u(16).gt.u(15)) then
+      u(16) = u(15)
+  end if
+
+
 end subroutine rk4
 
 subroutine init
@@ -693,6 +746,8 @@ subroutine init
   ! Capital
   delta=0.04 !* capital depreciation rate
   nu=2.7 !* Constant capital-to-output ratio
+
+  ! Dividends
   div0=0.0512863 ! Constant of the dividend function
   div1=0.4729 !* Slope of the dividend function
   divmin=0. !* Minimum of the dividend function
@@ -711,11 +766,7 @@ subroutine init
   eta=0.5 !* relaxation parameter of inflation 
   mu=1.3 !* markup of prices over the average cost
   omitted=0.3 ! offset for the production cost in the inflation
-  phitaylor=0.5 ! parameter characterizing the reactivity of the monetary policy
-  etar=10. ! relaxation parameter of the interest rate
-  rstar=0.01 ! Long-term interest rate target of the economy
-  istar=0.02 ! interest rate targeted by the monetary policy
-    
+
   ! Productivity
   alpha=0.02 !* growth rate of productivity
   !H Il me manque a_Tp_1, a_Tp_2, min max
@@ -725,6 +776,13 @@ subroutine init
   phi0=-.291535421 !* Constant of the short-term Philips curve
   phi1=.468777035 !* Slope of the short-term Philips curve
   !H  il me manque m mais j'ai l'impression qu'il ne sert à rien dans le code R
+
+  ! Interest rate
+  rate_type = 1 ! Type of rate (1 = constant, 2 = Taylor)
+  phitaylor=0.5 ! parameter characterizing the reactivity of the monetary policy
+  etar=10. ! relaxation parameter of the interest rate
+  rstar=0.03 ! Long-term interest rate target of the economy
+  istar=0.02 ! interest rate targeted by the monetary policy
 
   ! CO2 emissions
   delta_eland=-.0220096 !* Growth rate of land-use change CO2 of emissions

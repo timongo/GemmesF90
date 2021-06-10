@@ -101,6 +101,7 @@ module model_pars
   real(8) :: crlev ! slope of the leverage function
   real(8) :: g0 ! growth rate of gdp0
   integer :: dam_type ! Type of damage (1 = 'No', 2 = 'Q', 3 = 'Extreme')
+  integer :: rate_type ! Type of rate (1 = constant, 2 = Taylor)
   real(8), dimension(3,3) :: phimat
 end module model_pars
         
