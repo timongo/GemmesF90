@@ -197,12 +197,12 @@ def draw_figure(args, datas):
             continue
         i += 1
 
-    if opt=='all' and not boolcompf:
-        datdic = makedatadic(data)
-
-        ax = axes[6,3]
-        ax.plot(time, datdic['inflation']/np.amax(datdic['inflation']),
-                time, 1.8-datdic['smallpi_k']/np.amax(datdic['smallpi_k']))
+    #if opt=='all' and not boolcompf:
+    #    datdic = makedatadic(data)
+    #
+    #    ax = axes[6,3]
+    #    ax.plot(time, datdic['inflation']/np.amax(datdic['inflation']),
+    #            time, 1.8-datdic['smallpi_k']/np.amax(datdic['smallpi_k']))
 
     if boolcompf:
         axes[0,0].legend()

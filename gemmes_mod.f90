@@ -42,7 +42,7 @@
 !      = 2 : Run the iLOVECLIM/GEMMES model fortran/R. 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#define iLVC 2
+#define iLVC 1
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   stdin, stdout definition ... global variables and subroutines
@@ -224,6 +224,10 @@
         real(8), allocatable, dimension(:)   :: time
         !end module solution       
 
+#if ( iLVC == 1 )
+        integer :: counter_sol
+#endif
+
       contains
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -356,7 +360,7 @@
             r_ini=0.10627649250000004 !H a quoi sert r_ini
           
             ! initial time
-            t_ini = 0.
+            t_ini = 2015.
           
             ! Numerical parameters
             dt = 0.05
@@ -369,6 +373,8 @@
             implicit none
 
             integer :: mp
+            integer :: i
+            integer :: j
             real(8) :: catup,cuplo
           
             !namelist /model_parameters/ &
@@ -450,15 +456,19 @@
                  tmax
                  
             mp=1
+
             open(mp, &
+
+#if ( iLVC == 0 )
                  & file='gemmes.dat', &
+#elif ( iLVC == 1 )
+                 & file='../../../gemmes_cpl/sources/gemmes.dat', &
+#endif
                  & delim= 'apostrophe', &
                  & form = 'formatted', &
                  & action = 'read', &
                  & status = 'old')
             read(mp,gemmes_mod)
-            !read(mp,initial_conditions)
-            !read(mp,numerical_parameters)
             close(mp)
           
             catup = cat_pind/cup_pind
@@ -472,9 +482,22 @@
             phimat(3,2) = phi23
             phimat(3,3) = -phi23*cuplo  
           
+#if (iLVC == 1)
+            t_ini = 2015
+            tmax = 3015
+            nts = 1000
+            dt = 1.
+#else
             nts = floor(tmax/dt)+1
+#endif
             allocate(sol(nts,33),time(nts))
-          
+            do i=1,nts
+               time(i) = t_ini + dt*real(i-1,8)
+               do j=1,33
+                 sol(i,j) = 0.
+               enddo
+            enddo
+           
           end subroutine read_namelist
 
 ! subroutine initial_conditions
@@ -709,22 +732,34 @@
             real(8) :: t_aux
             real(8), dimension(16), intent(inout) :: u
             real(8), dimension(16) :: u_aux,k1,k2,k3,k4
-          
+# if ( iLVC == 1 )
+            real(8) :: temp_aux          
+            temp_aux = u(13)
+#endif
             call system_function(t,u,k1)
             u_aux = u + k1*0.5*dt
             t_aux = t + 0.5*dt
-            
+# if ( iLVC == 1 )
+            u(13) = temp_aux
+#endif
             call system_function(t_aux,u_aux,k2)
             u_aux = u + k2*0.5*dt
-            
+# if ( iLVC == 1 )
+            u(13) = temp_aux
+#endif
             call system_function(t_aux,u_aux,k3)
             u_aux = u + k3*dt
             t_aux = t + dt
-            
+# if ( iLVC == 1 )
+            u(13) = temp_aux
+#endif
             call system_function(t_aux,u_aux,k4)
           
             u = u + (k1+2.*(k2+k3)+k4)*dt/6.
-          
+# if ( iLVC == 1 )
+            u(13) = temp_aux
+#endif
+
             !H carbon price if like in R code
             if (u(16).gt.u(15)) then
                 u(16) = u(15)
@@ -1076,9 +1111,16 @@
             implicit none
             integer :: i,j
             integer :: mp
+            character(len=256) :: runinfo ! to get the local directory
           
             mp = 1
-            open(mp, file='gemmes.out', form = 'formatted')
+            open(mp, &
+#if ( iLVC == 0 )
+                 file='gemmes.out', &
+#elif ( iLVC == 1 )
+                 file='outputdata/gemmes.out', &
+#endif
+                 form = 'formatted')
             write(mp,'(34A)') 'time ', &
                  &            'capital  ', &
                  &            'npop  ', &
@@ -1130,13 +1172,11 @@
           end subroutine endgemmes
 
 #if ( iLVC == 0 )
-
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      End of the module here if independant GEMMES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       end module gemmes_mod
-
 #else
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -1145,7 +1185,67 @@
 
 ! subroutine gemmes_init
         subroutine gemmes_init
+#if ( iLVC == 1 )
 
+          ! Initialisation of variables to default
+          call init
+
+          ! Change default variables according to namelist
+          call read_namelist
+
+          ! Find all state initial conditions
+          call initial_conditions
+
+          ! initialisation of solution
+          counter_sol = 1
+          time(1) = t_ini
+          sol(1,1)    = capital
+          sol(1,2)    = npop_ini
+          sol(1,3)    = debt
+          sol(1,4)    = wage
+          sol(1,5)    = productivity
+          sol(1,6)    = price
+          sol(1,7)    = eland_ini
+          sol(1,8)    = sigma
+          sol(1,9)    = gsigma_ini
+          sol(1,10)   = co2at_ini
+          sol(1,11)   = co2up_ini
+          sol(1,12)   = co2lo_ini
+          sol(1,13)   = temp_ini
+          sol(1,14)   = temp0_ini
+          sol(1,15)   = pbs_ini
+          sol(1,16)   = pcar
+          sol(1,17)   = omega_ini
+          sol(1,18)   = lambda_ini
+          sol(1,19)   = d_ini
+          sol(1,20)   = gdp0
+          sol(1,21)   = y_ini
+          sol(1,22)   = eind_ini
+          sol(1,23)   = inflation
+          sol(1,24)   = abat
+          sol(1,25)   = n_ini
+          sol(1,26)   = smallpi
+          sol(1,27)   = smallpi_k
+          sol(1,28)   = dam
+          sol(1,29)   = dam_k
+          sol(1,30)   = dam_y
+          sol(1,31)   = fexo
+          sol(1,32)   = find
+          sol(1,33)   = rcb
+
+          ! iLOVECLIM VARIABLES
+          timelov = 2016. ! start year of climate-economy simulations (GEMMES reference)
+
+          ! glob_t2m_accum is the mean global temperature after 1 year of simulated time in iLoveclim
+          glob_t2m_init = glob_t2m_accum
+          glob_t2m_anom = 0. 
+
+          ! t2m_to_GEMMES: 2016 t2m anom relative to preind (0.85: GEMMES default)
+          t2m_to_gemmes = temp_ini
+
+          gemmes_emissions = 0.
+
+#elif ( iLVC == 2 )
           character(len=256) :: runinfo ! to get the local directory
           
           timelov = 2016. ! start year of climate-economy simulations (GEMMES reference)
@@ -1174,14 +1274,73 @@
           write(*,*) "on a appele l'init", t2m_to_gemmes, glob_t2m_init
 
           gemmes_emissions = 0.
-          
+#endif
         end subroutine gemmes_init
         
 ! subroutine gemmes_step
         subroutine gemmes_step
            
+#if ( iLVC == 1 )
+          implicit none
+
+          real(8), dimension(16) :: u
+          integer :: i
+          real(8) :: time_sol
+
+          ! iLOVECLIM variables
           timelov = timelov+1 ! yearly coupling
-          
+          glob_t2m_anom = glob_t2m_accum - glob_t2m_init 
+          t2m_to_gemmes = temp_ini + glob_t2m_anom
+           
+          ! state u before rk4
+          counter_sol = counter_sol+1
+          i = counter_sol
+          u(1)  = capital
+          u(2)  = npop
+          u(3)  = debt
+          u(4)  = wage
+          u(5)  = productivity
+          u(6)  = price
+          u(7)  = eland
+          u(8)  = sigma
+          u(9)  = gsigma
+          u(10) = co2at
+          u(11) = co2up
+          u(12) = co2lo
+          u(13) = t2m_to_gemmes
+          u(14) = temp0
+          u(15) = pbs
+          u(16) = pcar
+        
+          time_sol = time(i-1)
+          call rk4(time_sol,u)
+          time(i) = t_ini+dt*real(i-1,8)
+
+          ! save sol
+          sol(i,1:16) = u
+          sol(i,17)   = omega
+          sol(i,18)   = lambda
+          sol(i,19)   = debtratio
+          sol(i,20)   = gdp0
+          sol(i,21)   = gdp
+          sol(i,22)   = eind
+          sol(i,23)   = inflation
+          sol(i,24)   = abat
+          sol(i,25)   = n_red_fac
+          sol(i,26)   = smallpi
+          sol(i,27)   = smallpi_k
+          sol(i,28)   = dam
+          sol(i,29)   = dam_k
+          sol(i,30)   = dam_y
+          sol(i,31)   = fexo
+          sol(i,32)   = find
+          sol(i,33)   = rcb
+
+          ! save at every time
+          call output
+
+#elif ( iLVC == 2 )
+          timelov = timelov+1 ! yearly coupling
           open(520,file='timelov.txt')
           write(520,*) timelov
           close(520)
@@ -1195,7 +1354,7 @@
          &  trim(gemmespath)//"gemmes_step.sh",wait=.true.)
           write(*,*) "on a appele le step", t2m_to_gemmes,             &
           glob_t2m_accum
-
+#endif
         end subroutine gemmes_step
          
 ! subroutine gemmes_accum_tglob
@@ -1206,7 +1365,6 @@
           implicit none
 
           logical,intent(in) :: eoy
-          !real(8) :: tsurfmean
 
           if (eoy) then !end of year, we reset the global mean
              glob_t2m_accum = 0.
@@ -1220,9 +1378,12 @@
         subroutine gemmes_recup_emissions
 
           implicit none
-
+#if ( iLVC == 1 )
+          write(*,*) '\ndans gemmes_recup_emissions'
+          write(*,*) emissions, eind, eland
+          gemmes_emissions = gemmes_emissions + emissions
+#elif ( iLVC == 2 )
           real(kind=dblp) :: gemmes_emissions_yearly
-          !real(8) :: gemmes_emissions_yearly          
 
           open(520,file=trim(gemmespath)//"emissions.txt")
           read(520,*) gemmes_emissions_yearly
@@ -1230,7 +1391,7 @@
           gemmes_emissions = gemmes_emissions + gemmes_emissions_yearly
           write(*,*) "GEMMES emissions:", gemmes_emissions, & 
           gemmes_emissions_yearly
-          
+#endif
         end subroutine gemmes_recup_emissions
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
