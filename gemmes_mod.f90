@@ -36,13 +36,29 @@
 !
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      module gemmes_mod
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! iLVC = 0 : Run Gemmes as an independant program.
+!      = 1 : Run the iLOVECLIM/GEMMES model full fortran.
+!      = 2 : Run the iLOVECLIM/GEMMES model fortran/R. 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+#define iLVC 2
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   stdin, stdout definition ... global variables and subroutines
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        !use global_constants_mod, only: dblp=>dp
+      module gemmes_mod
+
+#if ( iLVC == 0 )
+        implicit none
+        
+        public :: init, read_namelist, initial_conditions, &
+                  solve, output, endgemmes
+
+        private
+#else
+        use global_constants_mod, only: dblp=>dp
 
         implicit none
         
@@ -55,23 +71,15 @@
         
         intrinsic :: get_environment_variable,execute_command_line
         
-        !real(kind=dblp),save :: timelov
-        !real(kind=dblp),save :: glob_t2m_init
-        !real(kind=dblp),save :: glob_t2m_accum
-        !real(kind=dblp),save :: glob_t2m_anom
-        !real(kind=dblp),save :: t2m_to_gemmes
-        !real(kind=dblp),save :: gemmes_emissions
-        !character(len=128), parameter :: gemmespath = "/home/giraud/&
-        !     &Code_Hugo/iloveclim_gemmes/gemmes/"
-
-        real(8),save :: timelov
-        real(8),save :: glob_t2m_init
-        real(8),save :: glob_t2m_accum
-        real(8),save :: glob_t2m_anom
-        real(8),save :: t2m_to_gemmes
-        real(8),save :: gemmes_emissions
+        real(kind=dblp),save :: timelov
+        real(kind=dblp),save :: glob_t2m_init
+        real(kind=dblp),save :: glob_t2m_accum
+        real(kind=dblp),save :: glob_t2m_anom
+        real(kind=dblp),save :: t2m_to_gemmes
+        real(kind=dblp),save :: gemmes_emissions
         character(len=128), parameter :: gemmespath = "/home/giraud/&
              &Code_Hugo/iloveclim_gemmes/gemmes/"
+#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! Declaration of variables and constants.
@@ -1121,10 +1129,21 @@
           
           end subroutine endgemmes
 
+#if ( iLVC == 0 )
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! old subroutine to interact with R.
+!      End of the module here if independant GEMMES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
+      end module gemmes_mod
+
+#else
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! subroutines to interact with iLOVECLIM
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+! subroutine gemmes_init
         subroutine gemmes_init
 
           character(len=256) :: runinfo ! to get the local directory
@@ -1158,6 +1177,7 @@
           
         end subroutine gemmes_init
         
+! subroutine gemmes_step
         subroutine gemmes_step
            
           timelov = timelov+1 ! yearly coupling
@@ -1178,12 +1198,15 @@
 
         end subroutine gemmes_step
          
+! subroutine gemmes_accum_tglob
         subroutine gemmes_accum_tglob(eoy)
            
+          use ipcc_output_mod, only: tsurfmean
+
           implicit none
 
           logical,intent(in) :: eoy
-          real(8) tsurfmean
+          !real(8) :: tsurfmean
 
           if (eoy) then !end of year, we reset the global mean
              glob_t2m_accum = 0.
@@ -1193,12 +1216,13 @@
 
         end subroutine gemmes_accum_tglob
 
+! subroutine gemmes_recup_emissions
         subroutine gemmes_recup_emissions
 
           implicit none
 
-          !real(kind=dblp) :: gemmes_emissions_yearly
-          real(8) :: gemmes_emissions_yearly          
+          real(kind=dblp) :: gemmes_emissions_yearly
+          !real(8) :: gemmes_emissions_yearly          
 
           open(520,file=trim(gemmespath)//"emissions.txt")
           read(520,*) gemmes_emissions_yearly
@@ -1210,10 +1234,12 @@
         end subroutine gemmes_recup_emissions
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the module here
+!      End of the module here for iLOVECLIM/GEMMES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       end module gemmes_mod
+
+#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      The End of All Things (op. cit.)
