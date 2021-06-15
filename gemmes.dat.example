@@ -1,9 +1,14 @@
- &model_parameters
- dam_type = 3,
-/
- &initial_conditions
-/
- &numerical_parameters
+ &gemmes_mod
+ pi2 = 0.0018
+ dam_type = 2
+
+ rate_type = 2
+
+ infla_type = 2
+ omitted = 0.2
+ eta = 0.5
+ mu = 1.3
+ 
  dt = 0.05,
  tmax = 84.
 /

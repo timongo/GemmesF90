@@ -4,8 +4,8 @@ LDLIBS 	=
 
 all: gemmes
 
-modules.o: modules.f90
-	${FC} ${FFLAGS} -c modules.f90 -o modules.o
+modules.o: gemmes_mod.f90
+	${FC} ${FFLAGS} -c gemmes_mod.f90 -o modules.o
 main.o: 
 	${FC} ${FFLAGS} -c main.f90 -o main.o
 
