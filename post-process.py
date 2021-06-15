@@ -37,6 +37,16 @@ def load_args():
                     argdict['compf'] = argl[n+1]
                 except IndexError:
                     ferror(key=1, msg=Arg)
+            elif Arg=='tf':
+                try:
+                    argdict['tf'] = int(argl[n+1])
+                except IndexError:
+                    ferror(key=1, msg=Arg)
+            elif Arg=='fname':
+                try:
+                    argdict['fname'] = argl[n+1]
+                except IndexError:
+                    ferror(key=1, msg=Arg)
             elif Arg=='doption':
                 try:
                     tmp = argl[n+1]
@@ -57,7 +67,8 @@ def load_data(args):
     """
     Fonction to load data from gemmes.
     """
-    data1 = np.loadtxt(fname='gemmes.out', skiprows=1)
+    fname = args['fname']
+    data1 = np.loadtxt(fname=fname, skiprows=1)
     if args['compf']!=False:
         data2 = np.loadtxt(fname=args['compf'], skiprows=1)
         datas = [data1, data2]
@@ -71,13 +82,15 @@ def fusage():
     """
     Function Usage
     """
-    print('\n> Usage: python post-process.py [-name name] [-doption option]')
-    print('> [-h] [-plot]')
+    print('\n> Usage: python post-process.py [-h] [-name figure name] [-plot]')
+    print('> [-fname file name] [-compf] [-tf final time] [-doption option]')
     print('>\n> Options:')
     print('>     -h :: display this message.')
     print('>     -name : string :: name of figure.')
+    print('>     -fname :: string :: name of .out file')
     print('>     -compf : string :: name of the file *.out to compare with.')
     print('>     -plot :: to show the figures instead to save them.')
+    print('>     -tf :: int :: final time for post-process.')
     print('>     -doption : string :: name of the considerd option in:', VARS)
     print()
     ferror()
@@ -116,13 +129,12 @@ def draw_figure(args, datas):
     name = args['name']
     compf = args['compf']
     boolcompf = compf!=False
-    tstop = 2200
+    tstop = args['tf']
 
     if name=='default':
         name = 'gemmes_'+opt+'.pdf'
 
     if boolcompf: # there are two *.out files to compare
-
         opt = 'all'
         nbs = 35
         nbr, nbc = nbs//5, nbs//7
@@ -159,7 +171,7 @@ def draw_figure(args, datas):
 
     # make figure
     figsize = change_mpl_opt(opt)
-    fig, axes = plt.subplots(nrows=nbr, ncols=nbc, figsize=figsize)
+    fig, axes = plt.subplots(nrows=nbr, ncols=nbc, sharex=True, figsize=figsize)
     j = -1
     if len(Vars)==1:
         axes = np.asarray([[axes]])
@@ -171,9 +183,11 @@ def draw_figure(args, datas):
         try:
             ax.plot(time, datp[:ts,n], label='gemmes.out')
             if boolcompf:
-                ax.plot(time2, datp2[:t2s,n], linestyle='--', label=compf)
+                ax.plot(time2, datp2[:t2s,n], linestyle='--', marker='',
+                    label=compf)
 
-            ax.set_xlabel('t')
+            if j==(nbr-1):
+                ax.set_xlabel('t')
             ax.set_ylabel(var)
             ax.xaxis.set_minor_locator(AutoMinorLocator())
             ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -182,6 +196,13 @@ def draw_figure(args, datas):
         except IndexError:
             continue
         i += 1
+
+    if opt=='all' and not boolcompf:
+        datdic = makedatadic(data)
+
+        ax = axes[6,3]
+        ax.plot(time, datdic['inflation']/np.amax(datdic['inflation']),
+                time, 1.8-datdic['smallpi_k']/np.amax(datdic['smallpi_k']))
 
     if boolcompf:
         axes[0,0].legend()
@@ -193,6 +214,19 @@ def draw_figure(args, datas):
         plt.tight_layout()
         plt.savefig(fname=name)
     plt.close(fig)
+
+def makedatadic(data):
+    """
+    Turn np array into dict.
+    """
+    datadic = {}
+    for n, var in enumerate(VARS):
+        datadic[var] = data[:,n]
+
+    datadic['time'] = data[:,0]
+
+    return datadic
+
 
 def ferror(key=0, msg=''):
     """
@@ -221,7 +255,7 @@ VARS = ['all', 'capital', 'npop', 'debt', 'wage', 'productivity', 'price',
         'eind', 'inflation', 'abat', 'n_red_fac', 'smallpi', 'smallpi_k',
         'dam', 'dam_k', 'dam_y', 'fexo', 'find', 'rcb']
 ARGD = {'name':'default', 'doption':'all', 'col':0, 'plot':False,
-    'compf':False}
+    'compf':False, 'tf':10000000, 'fname':'gemmes.out'}
 FIGSIZE = (20, 20)
 SIZE = 8
 

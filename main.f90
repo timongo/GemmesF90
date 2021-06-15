@@ -1,15 +1,20 @@
 program main
 
+  ! INITIALISATION
   ! Initialisation of variables to default
   call init
   ! Change default variables according to namelist
   call read_namelist
   ! Find all state initial conditions
   call initial_conditions
+
+  ! BOUCLE TEMPORELLE
   ! Main program
   call solve
   ! Outputs
   call output
+
+  ! END PROGRAM
   ! Free memory
   call endgemmes
   
@@ -50,7 +55,7 @@ subroutine initial_conditions
      case(2)
         dam = 1. - 1./(1 + pi1*temp_ini + pi2*temp_ini**2)
      case(3)
-        dam = 1. - 1./(1 + pi1*temp_ini + pi2*temp_ini**2 + pi3*temp_ini**zeta3)
+        dam = 1.-1./(1 + pi1*temp_ini + pi2*temp_ini**2 + pi3*temp_ini**zeta3)
   end select
   
   ! Damage
@@ -60,15 +65,20 @@ subroutine initial_conditions
 
   ! Total cost of climate change
   tc = (1.-dam_y)*(1.-abat)
+
   ! GDP
   gdp0 = y_ini/tc
   capital = gdp0*nu
+
   ! workforce
   workforce = lambda_ini*npop_ini
+
   ! Wage share
   productivity = gdp0/workforce
+
   ! Initial price index
   price = 1.
+
   ! wages
   wage = omega_ini*price*y_ini/workforce
 
@@ -81,7 +91,11 @@ subroutine initial_conditions
   ! inflation and Taylor's rate for rate_type=2
   !                   only rate for rate_type=1
   if (rate_type.eq.2) then
-      inflation = eta*(mu*(omega_ini + omitted) - 1.)
+      if (infla_type.eq.1) then
+          inflation = infla
+      else
+          inflation = eta*(mu*(omega_ini + omitted) - 1.)
+      endif
      ! central bank interest rate
      call Taylor(inflation,rcb)
   else
@@ -89,7 +103,8 @@ subroutine initial_conditions
   endif
 
   ! profits
-  pi = price*y_ini - wage*workforce - rcb*debt - deltad*price*capital + price*transfers
+  pi = price*y_ini - wage*workforce - rcb*debt - deltad*price*capital &
+       & + price*transfers
   smallpi_k = pi/(price*capital)
   smallpi = pi/(price*y_ini)
 
@@ -99,8 +114,9 @@ subroutine initial_conditions
   ! inflation for rate_type=1
   if (rate_type.eq.1) then
      WACC = (rcb*debt + deltapik*price*capital)/price/capital
-     costprod = 1./tc*(wage/price/productivity + pcar*conv10to15*sigma*(1-n_ini) &
-                & + nu*(WACC + deltad))
+     costprod = 1./tc*(wage/price/productivity &
+                    & + pcar*conv10to15*sigma*(1-n_ini) &
+                    & + nu*(WACC + deltad))
      inflation = eta*(mu*costprod - 1.)
   endif
 
@@ -121,8 +137,8 @@ subroutine initial_conditions
   ! growth rate of gpd0
   call kappa(smallpi,kappapi)
 
-  g0 = ((1.-CR)*(1.25*kappapi*tc/nu - deltad) &
-       & +CR*(smallpi_k - deltapik - tc*srep*d_ini/nu))
+  g0 = ((1.-cr)*(1.25*kappapi*tc/nu - deltad) &
+       & +cr*(smallpi_k - deltapik - tc*srep*d_ini/nu))
 
   ! initial carbon concentrations
   co2at = co2at_ini
@@ -301,6 +317,9 @@ subroutine system_function(t,u,k)
   t2016 = 1.
   t2100 = 2100. - 2016.
 
+  ! Say's law
+  call Sayslaw(npop,capital,productivity,gdp0,workforce,lambda)
+
   ! reduction emission factor and abatement
   n_red_fac = min((pcar/((1.-sa)*pbs))**(1./(theta-1.)),1.)
   abat = 0.001*sigma*pbs*n_red_fac**theta/theta
@@ -321,24 +340,27 @@ subroutine system_function(t,u,k)
 
   ! Total cost of climate change
   tc = (1.-dam_y)*(1.-abat)
+
   ! GDP
-  gdp0 = capital/nu
   gdp = gdp0*tc
-  ! workforce
-  workforce = gdp0/productivity
+
   ! Wage share
   omega = wage*workforce/(price*gdp)
-  ! employment parameter
-  lambda = workforce/npop
+
   ! debt ratio
   debtratio = debt/(price*gdp)
+
   ! Industrial emission
   eind = gdp0*sigma*(1.-n_red_fac)
 
   ! inflation and Taylor's rate for rate_type=2
   !                   only rate for rate_type=1
   if (rate_type.eq.2) then
-      inflation = eta*(mu*(omega + omitted) - 1.)
+      if (infla_type.eq.1) then
+          inflation = infla
+      else
+          inflation = eta*(mu*(omega + omitted) - 1.)
+      endif
      ! central bank interest rate
      call Taylor(inflation,rcb)
   else
@@ -349,7 +371,8 @@ subroutine system_function(t,u,k)
   transfers = sa*abat*gdp0 - pcar*conv10to15*eind
 
   ! profits
-  pi = price*gdp - wage*workforce - rcb*debt - deltad*price*capital + price*transfers
+  pi = price*gdp - wage*workforce - rcb*debt - deltad*price*capital &
+       & + price*transfers
   smallpi_k = pi/(price*capital)
   smallpi = pi/(price*gdp)
 
@@ -359,8 +382,9 @@ subroutine system_function(t,u,k)
   ! inflation for rate_type=1
   if (rate_type.eq.1) then
      WACC = (rcb*debt + deltapik*price*capital)/price/capital
-     costprod = 1./tc*(wage/price/productivity + pcar*conv10to15*sigma*(1-n_red_fac) &
-                & + nu*(WACC + deltad))
+     costprod = 1./tc*(wage/price/productivity & 
+                    & + pcar*conv10to15*sigma*(1-n_red_fac) &
+                    & + nu*(WACC + deltad))
      inflation = eta*(mu*costprod - 1.)
   endif
 
@@ -379,7 +403,7 @@ subroutine system_function(t,u,k)
   
   ! investment
   call kappa(smallpi,kappapi)
-  id = 1.25*kappapi*gdp
+  id = kappapi*gdp
   pir = pi - deltapik*price*capital
   investment = cr*(pir/price + deltad*capital - srep*debt/price) &
        &     + (1. - cr)*id
@@ -400,12 +424,13 @@ subroutine system_function(t,u,k)
   gsigmadot = deltagsigma*gsigma
   call co2dot(emissions,co2at,co2up,co2lo,co2atdot,co2updot,co2lodot)
   tdot = (forcing - rho*temp - gammastar*(temp-temp0))/heat_cap_at
+  tdot = tdot + 0.25*(rand() - 0.5)
   t0dot = gammastar*(temp-temp0)/heat_cap_lo
   pbsdot = pbs*deltapbs
   pcdot = pcar*(apc + bpc/(t+t2016))
 
-  g0 = ((1.-CR)*(1.25*kappapi*tc/nu - deltad) &
-       & +CR*(smallpi_k - deltapik - tc*srep*debtratio/nu))
+  g0 = ((1.-cr)*(1.25*kappapi*tc/nu - deltad) &
+       & +cr*(smallpi_k - deltapik - tc*srep*debtratio/nu))
 
   k(1)  = kdot
   k(2)  = ndot
@@ -437,6 +462,35 @@ subroutine Taylor(inflation,rcb)
 
 end subroutine Taylor
 
+subroutine Sayslaw(npop,capital,productivity,gdp0,workforce,lambda)
+  use model_pars
+  implicit none
+
+  real(8) :: npop
+  real(8) :: capital
+  real(8) :: productivity
+  real(8) :: gdp0
+  real(8) :: workforce
+  real(8) :: lambda
+
+  ! GDP
+  gdp0 = capital/nu
+
+  ! workforce
+  workforce = gdp0/productivity
+
+  ! check Say's law and set employment parameter
+  if (workforce>npop) then
+      lambda = 1
+      workforce = npop
+      gdp0 = productivity*workforce
+      capital = nu*gdp0
+  else
+      lambda = workforce/npop
+  endif
+
+end subroutine
+
 subroutine Tau(leverage,cr)
   use model_pars
   implicit none
@@ -467,7 +521,7 @@ subroutine Dividends(pik,deltapik)
   real(8) :: deltapik
   
   deltapik = min(max(div0 + div1*pik,divmin),divmax)
-
+ 
 end subroutine Dividends
 
 subroutine Phi(lambda,philam)
@@ -581,7 +635,9 @@ subroutine read_namelist
        cr0, &
        crlev, &
        dam_type, &
-       rate_type
+       rate_type, &
+       infla_type, &
+       infla
   namelist /initial_conditions/ &
        co2at_ini, &
        co2up_ini, &
@@ -716,7 +772,6 @@ subroutine rk4(t,u)
       u(16) = u(15)
   end if
 
-
 end subroutine rk4
 
 subroutine init
@@ -732,10 +787,11 @@ subroutine init
   pi2=0.00236 !* damage function parameter
   pi3=0.0000819 !* damage function parameter
   zeta3=6.754 !* damage function parameter
-  fdamk=1./3 !* (paper = 1./3) fraction of environmental damage allocated to the stock of capital
-  dam_type = 3 !* by default, 1: no damage
+  fdamk=1./3 !* (paper = 1./3) fraction of environmental damage allocated
+             !  to the stock of capital
+  dam_type = 3 !  by default, 1: no damage
                !              2: medium damage
-               !              3: high damage
+               !* by default  3: high damage
   ! Workforce
   deltanpop=0.0305 !* leading growth rate of workforce
   npopbar=7.055925493 !* maximum population in the logistic evolution
@@ -762,10 +818,11 @@ subroutine init
   !H il manque I_Dam mais il est a 0 dans le code R
 
   ! Inflation
-  conv10to15=1.160723971/1000. !* conversion factor
   eta=0.5 !* relaxation parameter of inflation 
   mu=1.3 !* markup of prices over the average cost
   omitted=0.3 ! offset for the production cost in the inflation
+  infla_type = 2 !1 constant, 2 with omitted
+  infla = 0.02 ! constant inflation value
 
   ! Productivity
   alpha=0.02 !* growth rate of productivity
@@ -779,10 +836,11 @@ subroutine init
 
   ! Interest rate
   rate_type = 1 ! Type of rate (1 = constant, 2 = Taylor)
-  phitaylor=0.5 ! parameter characterizing the reactivity of the monetary policy
+  phitaylor=0.5 ! param characterizing the reactivity of the monetary policy
   etar=10. ! relaxation parameter of the interest rate
-  rstar=0.03 ! Long-term interest rate target of the economy
+  rstar=0.01 ! Long-term interest rate target of the economy
   istar=0.02 ! interest rate targeted by the monetary policy
+  srep=0.1 ! Fraction of the outstanding debt repaid yearly
 
   ! CO2 emissions
   delta_eland=-.0220096 !* Growth rate of land-use change CO2 of emissions
@@ -790,16 +848,15 @@ subroutine init
 
   ! Abatement and control prices
   theta=2.6 !* parameter of the abatement cost function
-  deltapbs=-.00505076337 !* Exogenous growth rate of the back-stop technology price
-
-  ! public - private sector
-  sa=0 ! Fraction of abatement costs that are subsidized
+  deltapbs=-.00505076337 !* Exo growth rate of the back-stop technology price
 
   ! Carbon price
+  conv10to15=1.160723971/1000. !* conversion factor
   apc=0.125 !* carbon price parameter
   bpc=0.625 !* carbon price parameter
 
-  srep=0.1 ! Fraction of the outstanding debt repaid yearly
+  ! public - private sector
+  sa=0 ! Fraction of abatement costs that are subsidized
 
   ! leverage
   !H pas de leverage dans le code R
@@ -810,14 +867,16 @@ subroutine init
   climate_sens=3.1 ! Climate sensitivity
   gammastar=0.0176 ! Heat exchange coefficient between temperature layers
   f2co2=3.6813 ! Change in radiative forcing resulting from doubling of CO2
-  cat_pind=588. ! CO2 preindustrial concentration in atmosphere
-  cup_pind=360. ! CO2 preindustrial concentration in upper layer of ocean and biosphere
+  cat_pind=588. ! CO2 preind conc in atmosphere
+  cup_pind=360. ! CO2 preind conc in upper layer of ocean and biosphere
   clo_pind=1720. ! CO2 preindustrial concentration in bottom layer of the ocean
   fexo0=0.5 ! Initial value of the exogenous radiative forcing
   fexo1=1. ! value of the exogenous radiative forcing in 2100
-  phi12=0.0239069 ! Transfer coefficient for carbon from the atmosphere to the upper ocean
-  phi23=0.0013409 ! Transfer coefficient for carbon from the upper ocean/biosphere to the lower ocean
-  heat_cap_at=49.75817526819656 ! Heat capacity of the atmosphere biosphere and upper ocean
+  phi12=0.0239069 ! Transfer coef for carbon from the atmo to the upper ocean
+  phi23=0.0013409 ! Transfer coef for carbon from the upper ocean/biosphere 
+                  ! to the lower ocean
+  heat_cap_at=49.75817526819656 ! Heat capacity of the atmo biosphere and 
+                                ! upper ocean
   heat_cap_lo=3.52 ! Heat capacity of the deeper ocean
 
   ! Initial conditions, values with * are equal as in the code R
