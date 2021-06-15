@@ -180,7 +180,6 @@
         real(8) :: crlev ! slope of the leverage function
         real(8) :: g0 ! growth rate of gdp0
         integer :: dam_type ! Type of damage (1 = 'No', 2 = 'Q', 3 = 'Extreme')
-        integer :: rate_type ! Type of rate (1 = constant, 2 = Taylor)
         integer :: infla_type ! Type of inflation 1 constant, 2 with omitted
         real(8) :: infla ! conatnt value of inflation
         real(8), dimension(3,3) :: phimat
@@ -237,9 +236,9 @@
             zeta3=6.754 !* damage function parameter
             fdamk=1./3 !* (paper = 1./3) fraction of environmental damage allocated
                        !  to the stock of capital
-            dam_type = 3 !  by default, 1: no damage
+            dam_type = 1 !  by default, 1: no damage
                          !              2: medium damage
-                         !* by default  3: high damage
+                         !*             3: high damage
             ! Workforce
             deltanpop=0.0305 !* leading growth rate of workforce
             npopbar=7.055925493 !* maximum population in the logistic evolution
@@ -266,11 +265,11 @@
             !H il manque I_Dam mais il est a 0 dans le code R
           
             ! Inflation
+            infla_type = 1 !1 constant, 2 with omitted, 3 with WACC
+            infla = 0.02 ! constant inflation value
             eta=0.5 !* relaxation parameter of inflation 
             mu=1.3 !* markup of prices over the average cost
             omitted=0.3 ! offset for the production cost in the inflation
-            infla_type = 2 !1 constant, 2 with omitted
-            infla = 0.02 ! constant inflation value
           
             ! Productivity
             alpha=0.02 !* growth rate of productivity
@@ -283,10 +282,10 @@
             !H  il me manque m mais j'ai l'impression qu'il ne sert à rien dans le code R
           
             ! Interest rate
-            rate_type = 1 ! Type of rate (1 = constant, 2 = Taylor)
             phitaylor=0.5 ! param characterizing the reactivity of the monetary policy
             etar=10. ! relaxation parameter of the interest rate
             rstar=0.01 ! Long-term interest rate target of the economy
+                       ! This is also the rate value if constant
             istar=0.02 ! interest rate targeted by the monetary policy
             srep=0.1 ! Fraction of the outstanding debt repaid yearly
           
@@ -417,7 +416,6 @@
                  cr0, &
                  crlev, &
                  dam_type, &
-                 rate_type, &
                  infla_type, &
                  infla, &
 
@@ -539,9 +537,8 @@
             ! Nominal debt
             debt = d_ini*price*y_ini
           
-            ! inflation and Taylor's rate for rate_type=2
-            !                   only rate for rate_type=1
-            if (rate_type.eq.2) then
+            ! inflation for infla_type=1, 2 and rate
+            if (infla_type<3) then
                 if (infla_type.eq.1) then
                     inflation = infla
                 else
@@ -562,8 +559,8 @@
             ! Dividends
             call Dividends(smallpi_k,deltapik)
           
-            ! inflation for rate_type=1
-            if (rate_type.eq.1) then
+            ! inflation for infla_type = 3
+            if (infla_type.eq.3) then
                WACC = (rcb*debt + deltapik*price*capital)/price/capital
                costprod = 1./tc*(wage/price/productivity &
                               & + pcar*conv10to15*sigma*(1-n_ini) &
@@ -833,9 +830,8 @@
             ! Industrial emission
             eind = gdp0*sigma*(1.-n_red_fac)
           
-            ! inflation and Taylor's rate for rate_type=2
-            !                   only rate for rate_type=1
-            if (rate_type.eq.2) then
+            ! inflation and rate for infla_type=1, 2
+            if (infla_type<3) then
                 if (infla_type.eq.1) then
                     inflation = infla
                 else
@@ -859,8 +855,8 @@
             ! Dividends
             call Dividends(smallpi_k,deltapik)
           
-            ! inflation for rate_type=1
-            if (rate_type.eq.1) then
+            ! inflation for infla_type=3
+            if (infla_type.eq.3) then
                WACC = (rcb*debt + deltapik*price*capital)/price/capital
                costprod = 1./tc*(wage/price/productivity & 
                               & + pcar*conv10to15*sigma*(1-n_red_fac) &
