@@ -902,7 +902,6 @@
                         & co2lo,co2atdot,co2updot,co2lodot)
             tdot = (forcing - rho*temp & 
                    & - gammastar*(temp-temp0))/heat_cap_at
-            tdot = tdot + 0.25*(rand() - 0.5)
             t0dot = gammastar*(temp-temp0)/heat_cap_lo
             pbsdot = pbs*deltapbs
             pcdot = pcar*(apc + bpc/(t+t2016))
