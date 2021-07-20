@@ -20,7 +20,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: gemmes_mod
 !
-!>     @author  Hugo Martin, Aurélien Quiquet, Didier M. Roche (dmr)
+!>     @author  Hugo Martin, Timothée Nicolas, Aurélien Quiquet, Didier M. Roche (dmr)
 !
 !
 !>     @brief This module gemmes_mod is used to couple iLOVECLIM with the GEMMES Integrated Assessment Model
@@ -37,12 +37,12 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! iLVC = 0 : Run Gemmes as an independant program.
-!      = 1 : Run the iLOVECLIM/GEMMES model full fortran.
-!      = 2 : Run the iLOVECLIM/GEMMES model fortran/R. 
+! iLVC = 0 : Run Gemmes (Coping2) as an independant program.
+!      = 1 : Run the iLOVECLIM/GEMMES(Coping2) model full fortran.
+!      = 2 : Run the iLOVECLIM/GEMMES(Coping1) model fortran/R. 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#define iLVC 1
+#define iLVC 0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   stdin, stdout definition ... global variables and subroutines
@@ -189,7 +189,6 @@
         real(8) :: g0 ! growth rate of gdp0
         integer :: dam_type ! Type of damage (1 = 'No', 2 = 'Q', 3 = 'Extreme')
         integer :: infla_type ! Type of inflation 1 constant, 2 with omitted
-        real(8) :: infla ! conatnt value of inflation
         real(8), dimension(3,3) :: phimat
         !end module model_pars
                
@@ -239,123 +238,109 @@
        
             implicit none
           
-            ! Default variables
-          
-            ! Climate damages
-            pi1=0. !* damage function parameter
-            pi2=0.00236 !* damage function parameter
-            pi3=0.0000819 !* damage function parameter
-            zeta3=6.754 !* damage function parameter
-            fdamk=1./3 !* (paper = 1./3) fraction of environmental damage allocated
-                       !  to the stock of capital
-            dam_type = 1 !  by default, 1: no damage
-                         !              2: medium damage
-                         !*             3: high damage
+            !!!! Default variables
             ! Workforce
-            deltanpop=0.0305 !* leading growth rate of workforce
-            npopbar=7.055925493 !* maximum population in the logistic evolution
-          
-            ! Global population
-            !H il manque ces variables
+            deltanpop=0.0305 ! leading growth rate of workforce
+            npopbar=7.056 ! maximum population in the logistic evolution
+            phi0=-0.292 ! Constant of the short-term Philips curve
+            phi1=0.469 ! Slope of the short-term Philips curve
+            alpha=0.02 !* growth rate of productivity
           
             ! Capital
-            delta=0.04 !* capital depreciation rate
+            delta=0.04 ! capital depreciation rate
             nu=2.7 !* Constant capital-to-output ratio
           
             ! Dividends
-            div0=0.0512863 ! Constant of the dividend function
-            div1=0.4729 !* Slope of the dividend function
-            divmin=0. !* Minimum of the dividend function
-            divmax=.3 !* Maximum of the dividend function; last value 1.
-            !H Je ne retrouve pas div0 de la meme maniere
+            div0=0.051 ! Constant of the dividend function
+            div1=0.4729 ! Slope of the dividend function
+            divmin=0. ! Minimum of the dividend function
+            divmax=1. ! Maximum of the dividend function; last value 1.
           
             ! Investment
-            kappa0=.031774 !* Constant of the investment function
-            kappa1=.575318414 !* Slope of the investment function
-            kappamax=0.3 !* Maximum of the investment function
-            kappamin=0. !* Minimum of the investment function
-            !H il manque I_Dam mais il est a 0 dans le code R
+            kappa0=0.0397 ! Constant of the investment function
+            kappa1=0.719 ! Slope of the investment function
+            kappamax=0.3 ! Maximum of the investment function
+            kappamin=0. ! Minimum of the investment function
           
             ! Inflation
-            infla_type = 1 !1 constant, 2 with omitted, 3 with WACC
-            infla = 0.02 ! constant inflation value
-            eta=0.5 !* relaxation parameter of inflation 
-            mu=1.3 !* markup of prices over the average cost
-            omitted=0.3 ! offset for the production cost in the inflation
-          
-            ! Productivity
-            alpha=0.02 !* growth rate of productivity
-            !H Il me manque a_Tp_1, a_Tp_2, min max
-            !H On est dans le cas constant du code R
-          
-            ! Wages
-            phi0=-.291535421 !* Constant of the short-term Philips curve
-            phi1=.468777035 !* Slope of the short-term Philips curve
-            !H  il me manque m mais j'ai l'impression qu'il ne sert à rien dans le code R
+            infla_type = 1 ! 1 constant, 2 with omitted, 3 with WACC
+            eta=0.192 ! relaxation parameter of inflation 
+            mu=1.875 ! markup of prices over the average cost
+            omitted=0. ! offset for the production cost in the inflation
+            istar=0.02 ! inflation rate targeted by the monetary policy
           
             ! Interest rate
             phitaylor=0.5 ! param characterizing the reactivity of the monetary policy
             etar=10. ! relaxation parameter of the interest rate
             rstar=0.01 ! Long-term interest rate target of the economy
                        ! This is also the rate value if constant
-            istar=0.02 ! interest rate targeted by the monetary policy
             srep=0.1 ! Fraction of the outstanding debt repaid yearly
           
-            ! CO2 emissions
-            delta_eland=-.0220096 !* Growth rate of land-use change CO2 of emissions
-            deltagsigma=-0.001 !* dynamics of emissivity
-          
             ! Abatement and control prices
-            theta=2.6 !* parameter of the abatement cost function
-            deltapbs=-.00505076337 !* Exo growth rate of the back-stop technology price
+            theta=2.6 ! parameter of the abatement cost function
+            deltapbs=-0.005 ! Exo growth rate of the back-stop technology price
           
             ! Carbon price
-            conv10to15=1.160723971/1000. !* conversion factor
-            apc=0.125 !* carbon price parameter
-            bpc=0.625 !* carbon price parameter
+            conv10to15=1.160723971/1000. ! conversion factor
+            apc=0.125 ! carbon price parameter
+            bpc=0.625 ! carbon price parameter
           
             ! public - private sector
-            sa=0 ! Fraction of abatement costs that are subsidized
+            sa=0. ! Fraction of abatement costs that are subsidized
           
             ! leverage
             !H pas de leverage dans le code R
             cr0=0. ! Constant of the leverage function
             crlev=0.! slope of the leverage function
+
+            ! Climate damages
+            pi1=0. ! damage function parameter
+            pi2=0.00236 ! damage function parameter
+            pi3=0.0000819 ! damage function parameter
+            zeta3=6.754 ! damage function parameter
+            fdamk=1./3 ! (paper = 1./3) fraction of environmental damage allocated
+                       !  to the stock of capital
+            dam_type = 1 !  by default, 1: no damage
+                         !              2: medium damage
+                         !              3: high damage
+
+            ! CO2 emissions
+            delta_eland=-0.022 ! Growth rate of land-use change CO2 of emissions
+            deltagsigma=-0.001 ! dynamics of emissivity
           
             ! Climate constants for climate module
             climate_sens=3.1 ! Climate sensitivity
             gammastar=0.0176 ! Heat exchange coefficient between temperature layers
-            f2co2=3.6813 ! Change in radiative forcing resulting from doubling of CO2
+            f2co2=3.681 ! Change in radiative forcing resulting from doubling of CO2
             cat_pind=588. ! CO2 preind conc in atmosphere
             cup_pind=360. ! CO2 preind conc in upper layer of ocean and biosphere
             clo_pind=1720. ! CO2 preindustrial concentration in bottom layer of the ocean
             fexo0=0.5 ! Initial value of the exogenous radiative forcing
             fexo1=1. ! value of the exogenous radiative forcing in 2100
-            phi12=0.0239069 ! Transfer coef for carbon from the atmo to the upper ocean
-            phi23=0.0013409 ! Transfer coef for carbon from the upper ocean/biosphere 
-                            ! to the lower ocean
-            heat_cap_at=49.75817526819656 ! Heat capacity of the atmo biosphere and 
-                                          ! upper ocean
+            phi12=0.024 ! Transfer coef for carbon from the atmo to the upper ocean
+            phi23=0.001 ! Transfer coef for carbon from the upper ocean/biosphere 
+                        !  to the lower ocean
+            heat_cap_at=1/.098 ! Heat capacity of the atmo biosphere and 
+                                ! upper ocean
             heat_cap_lo=3.52 ! Heat capacity of the deeper ocean
           
             ! Initial conditions, values with * are equal as in the code R
-            !H par rapport au code R, il me manque NG, F_exo ; r_ini dans R.
-            y_ini=59.7387 !*
-            npop_ini=4.825484061 !*
-            lambda_ini=0.674828 !*
-            omega_ini=0.5782323 !*
-            d_ini=1.53282171 !*
-            eland_ini=2.6 !*
-            eind_ini=35.85 !*
-            n_ini=0.03 !*
-            gsigma_ini=-0.0152 !* replace last value =-0.0105
-            pbs_ini=547.2220801465 !*
+            y_ini=59.7387 !
+            npop_ini=4.8 !
+            lambda_ini=0.675 !
+            omega_ini=0.578 !
+            d_ini=1.53 !
+            eland_ini=2.6 !
+            eind_ini=35.85 !
+            n_ini=0.03 !
+            gsigma_ini=-0.0152 !
+            pbs_ini=547.22 !
           
-            co2at_ini=851. !*
-            co2up_ini=460. !*
-            co2lo_ini=1740. !*
-            temp_ini=0.85 !*
-            temp0_ini=0.0068 !*
+            co2at_ini=851. !
+            co2up_ini=460. !
+            co2lo_ini=1740. !
+            temp_ini=0.85 !
+            temp0_ini=0.0068 !
           
             r_ini=0.10627649250000004 !H a quoi sert r_ini
           
@@ -364,7 +349,7 @@
           
             ! Numerical parameters
             dt = 0.05
-            tmax = 84.
+            tmax = 2100.
           end subroutine init
 
 ! subroutine read_namelist
@@ -431,7 +416,6 @@
                  crlev, &
                  dam_type, &
                  infla_type, &
-                 infla, &
 
             !namelist /initial_conditions/ &
                  co2at_ini, &
@@ -488,7 +472,7 @@
             nts = 1000
             dt = 1.
 #else
-            nts = floor(tmax/dt)+1
+            nts = floor((tmax-t_ini+1)/dt)+1
 #endif
             allocate(sol(nts,33),time(nts))
             do i=1,nts
@@ -505,7 +489,6 @@
 
             implicit none
 
-            real(8) :: t2016, t2100
             real(8) :: tc
             real(8) :: transfers
             real(8) :: kappapi
@@ -514,10 +497,6 @@
             real(8) :: deltad
             real(8) :: costprod
             real(8) :: WACC
-          
-            ! time intermediate variables
-            t2016 = 1.
-            t2100 = 2100. - 2016.
           
             ! carbon price
             pcar = pbs_ini*n_ini**(theta - 1.)
@@ -571,12 +550,13 @@
             ! inflation for infla_type=1, 2 and rate
             if (infla_type<3) then
                 if (infla_type.eq.1) then
-                    inflation = infla
+                    inflation = istar
+                    rcb = rstar
                 else
                     inflation = eta*(mu*(omega_ini + omitted) - 1.)
+                   ! central bank interest rate
+                   call Taylor(inflation,rcb)
                 endif
-               ! central bank interest rate
-               call Taylor(inflation,rcb)
             else
                rcb =  rstar
             endif
@@ -777,8 +757,9 @@
             real(8), dimension(16), intent(out) :: k
           
             ! Intermediate variables
-            real(8) :: t2016, t2100
+            real(8) :: t2015, t2100
             real(8) :: tc
+            real(8) :: ttilde
             real(8) :: transfers
             real(8) :: kappapi
             real(8) :: deltapik
@@ -833,8 +814,8 @@
             end if
           
             ! time intermediate variables
-            t2016 = 1.
-            t2100 = 2100. - 2016.
+            t2015 = 2015.
+            t2100 = 2100.
           
             ! Say's law
             call Sayslaw(npop,capital,productivity,gdp0,workforce,lambda)
@@ -876,12 +857,13 @@
             ! inflation and rate for infla_type=1, 2
             if (infla_type<3) then
                 if (infla_type.eq.1) then
-                    inflation = infla
+                    inflation = istar
+                    rcb = rstar
                 else
-                    inflation = eta*(mu*(omega + omitted) - 1.)
+                    inflation = eta*(mu*omega - 1.)
+                   ! central bank interest rate
+                   call Taylor(inflation,rcb)
                 endif
-               ! central bank interest rate
-               call Taylor(inflation,rcb)
             else
                rcb =  rstar
             endif
@@ -916,7 +898,8 @@
           
             ! emissions
             find = f2co2*log(co2at/cat_pind)/log(2.)
-            fexo = min(fexo0 + (fexo1 - fexo0)*t/84.,fexo1)
+            ttilde = (t-t2015)/(t2100-t2015)
+            fexo = min(fexo1*ttilde+fexo0*(1-ttilde), fexo1)
             forcing = find + fexo
             emissions = eind + eland
             
@@ -947,7 +930,7 @@
                    & - gammastar*(temp-temp0))/heat_cap_at
             t0dot = gammastar*(temp-temp0)/heat_cap_lo
             pbsdot = pbs*deltapbs
-            pcdot = pcar*(apc + bpc/(t+t2016))
+            pcdot = pcar*(apc + bpc/t)
           
             g0 = ((1.-cr)*(1.25*kappapi*tc/nu - deltad) &
                  & +cr*(smallpi_k - deltapik - tc*srep*debtratio/nu))
@@ -979,8 +962,9 @@
             real(8) :: inflation
             real(8) :: rcb
             
-            rcb = min(max(rstar - phitaylor*istar &
-                  & + (1.+phitaylor)*inflation,0.),1.)
+            rcb = min(max( & 
+                & rstar + inflation + phitaylor*(inflation - istar) &
+                & , 0.), 1.)
           
           end subroutine Taylor
 
@@ -1118,7 +1102,7 @@
 #if ( iLVC == 0 )
                  file='gemmes.out', &
 #elif ( iLVC == 1 )
-                 file='outputdata/gemmes.out', &
+                 file='outputdata/gemmes90/gemmes.out', &
 #endif
                  form = 'formatted')
             write(mp,'(34A)') 'time ', &
@@ -1187,6 +1171,8 @@
         subroutine gemmes_init
 #if ( iLVC == 1 )
 
+          character(len=256) :: runinfo ! to get the local directory
+
           ! Initialisation of variables to default
           call init
 
@@ -1244,6 +1230,15 @@
           t2m_to_gemmes = temp_ini
 
           gemmes_emissions = 0.
+
+          ! create output directory
+          call execute_command_line( &
+          &"[ -d outputdata/gemmes90 ] || mkdir -p outputdata/gemmes90")
+
+          ! save gemmes.dat file
+          call execute_command_line( &
+          & "cp ../../../gemmes_cpl/sources/gemmes.dat &
+          &  outputdata/gemmes90")
 
 #elif ( iLVC == 2 )
           character(len=256) :: runinfo ! to get the local directory
@@ -1378,19 +1373,50 @@
         subroutine gemmes_recup_emissions
 
           implicit none
+
+          real(8) :: GtC_to_GtCO2
+          real(8) :: ppm_to_GtC
+          real(8) :: stupid_carbon_cycle
+          real(8) :: temp_e
+
+          ! add CO2-eq emmisions in CO2
+          ! conversion emissions <-> mixing ratio from:
+          !     Global Carbon Budget 2019, Friedlingstein et al. 2019 ESSD
+          !  GtCO2 -> GtC: 3.664 : conversion
+          !  GtC   -> ppm: 2.124 : conversion
+          !  stupid_carbon_cyle = 0.46 : approx 46% emissions in atmos
+
 #if ( iLVC == 1 )
-          write(*,*) '\ndans gemmes_recup_emissions'
-          write(*,*) emissions, eind, eland
-          gemmes_emissions = gemmes_emissions + emissions
+          GtC_to_GtCO2 = 3.664
+          ppm_to_GtC = 2.124
+          stupid_carbon_cycle = 0.46
+
+          temp_e = stupid_carbon_cycle*emissions
+          gemmes_emissions = gemmes_emissions &
+              & + temp_e/GtC_to_GtCO2/ppm_to_GtC
+
+          write(*,*) '\nGemmes emissions:'
+          write(*,*) 'This year:',emissions,'GtCO2 ->', & 
+              & temp_e/GtC_to_GtCO2/ppm_to_GtC,'ppm'
+          write(*,*) 'Total:',gemmes_emissions*GtC_to_GtCO2*ppm_to_GtC,&
+              & 'GtCO2 =', gemmes_emissions,'ppm'
+
 #elif ( iLVC == 2 )
           real(kind=dblp) :: gemmes_emissions_yearly
+
+          GtC_to_GtCO2 = 3.664
+          ppm_to_GtC = 2.124
+          stupid_carbon_cycle = 0.46
 
           open(520,file=trim(gemmespath)//"emissions.txt")
           read(520,*) gemmes_emissions_yearly
           close(520)
-          gemmes_emissions = gemmes_emissions + gemmes_emissions_yearly
-          write(*,*) "GEMMES emissions:", gemmes_emissions, & 
-          gemmes_emissions_yearly
+          temp_e = stupid_carbon_cycle*gemmes_emissions_yearly
+
+          gemmes_emissions = gemmes_emissions & 
+              & + temp_e/GtC_to_GtCO2/ppm_to_GtC
+          write(*,*) "GEMMES emissions (ppm):", gemmes_emissions, & 
+              & temp_e/GtC_to_GtCO2/ppm_to_GtC
 #endif
         end subroutine gemmes_recup_emissions
 

@@ -78,6 +78,11 @@ def load_data(args):
     print('\n> Gemmes data loaded')
     return datas
 
+def moy(time, dat, sta, sto):                                            
+    select = (time>=sta) * (time<=sto)                                   
+    mean = np.mean(dat[select])                                          
+    return mean
+
 def fusage():
     """
     Function Usage
@@ -140,7 +145,7 @@ def draw_figure(args, datas):
         nbr, nbc = nbs//5, nbs//7
 
         datp = datas[0]
-        time = datp[:,0]+2015
+        time = datp[:,0]
         time = time[time<=tstop]
         ts = time.size
 
@@ -152,7 +157,7 @@ def draw_figure(args, datas):
 
         datp2 = datp2[:,1:]
         Vars = VARS[1:]
-        name = 'comp_gemmes_'+compf[:-4]+'.pdf'
+        name = 'comp_gemmes.pdf'
 
     else: # there is only one *.out file
         data = datas[0]
@@ -184,7 +189,15 @@ def draw_figure(args, datas):
             ax.plot(time, datp[:ts,n], label='gemmes.out')
             if boolcompf:
                 ax.plot(time2, datp2[:t2s,n], linestyle='--', marker='',
-                    label=compf)
+                    label='GemmesF90/iLOVECLIM')
+            if n==12:
+                mean = moy(time, datp[:ts,n], sta, sto)
+                ax.text(x=2020, y=2.8, s='+{:.2f}°C'.format(mean),
+                  color='C0')
+                if boolcompf:
+                    mean = moy(time2, datp2[:t2s,n], sta, sto)
+                    ax.text(x=2020, y=2.5, s='+{:.2f}°C'.format(mean),
+                      color='C1')
 
             if j==(nbr-1):
                 ax.set_xlabel('t')
@@ -258,6 +271,7 @@ ARGD = {'name':'default', 'doption':'all', 'col':0, 'plot':False,
     'compf':False, 'tf':10000000, 'fname':'gemmes.out'}
 FIGSIZE = (20, 20)
 SIZE = 8
+sta, sto = 2085, 2115
 
 # script ----------------------------------------------------------------------
 if __name__=='__main__':
